@@ -1,0 +1,10 @@
+[project]
+name = "deu-real-estate-pricing"
+version = "0.1.0"
+description = "Simple Pricing analysis for the Data Engineering Training"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "notebook>=7.5.6",
+    "pandas>=2.3.3",
+]
