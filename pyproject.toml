@@ -5,6 +5,7 @@ description = "Simple Pricing analysis for the Data Engineering Training"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "matplotlib>=3.9.4",
     "notebook>=7.5.6",
     "pandas>=2.3.3",
 ]
