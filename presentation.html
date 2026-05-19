@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Brazilian Real Estate Pricing &mdash; Rent &amp; Sell</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1e2230;
+    --ink: #e6e8ee;
+    --muted: #9aa3b2;
+    --accent: #7cc4ff;
+    --rent: #66b3ff;
+    --sell: #ff9999;
+    --good: #66ffdb;
+    --warn: #f7d166;
+    --bronze: #cd7f32;
+    --silver: #c0c0c0;
+    --gold: #ffcc33;
+    --border: #2a3040;
+    --code-bg: #0b0d12;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 18px; }
+  body { font-size: 1.05rem; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, system-ui, sans-serif;
+    height: 100%; overflow: hidden; }
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  .slide {
+    position: absolute; inset: 0; padding: 4vh 5vw; opacity: 0; pointer-events: none;
+    transform: translateY(8px); transition: opacity .25s ease, transform .25s ease;
+    display: flex; flex-direction: column; gap: 2vh; overflow: auto;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  h1 { font-size: clamp(2.6rem, 5.2vw, 4rem); margin: 0; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); margin: 0; letter-spacing: -0.01em; color: var(--accent); }
+  h3 { font-size: clamp(1.15rem, 2vw, 1.5rem); margin: 0; color: var(--ink); }
+  p { line-height: 1.55; color: var(--ink); margin: 0; font-size: 1.05rem; }
+  .muted { color: var(--muted); }
+  .kicker { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.95rem; color: var(--muted); }
+
+  ul { margin: 0; padding-left: 1.2em; line-height: 1.7; font-size: 1.05rem; }
+  li + li { margin-top: 0.25em; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; font-size: 0.95rem; color: #d6e1ff; overflow: auto; margin: 0; }
+  code.inline { background: var(--code-bg); border: 1px solid var(--border); padding: 0.05em 0.4em;
+    border-radius: 4px; font-size: 0.9em; }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; flex: 1; min-height: 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+
+  .chart-card { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .chart-card img { width: 100%; height: auto; max-height: 70vh; object-fit: contain;
+    background: #fff; border-radius: 8px; border: 1px solid var(--border); }
+  .tag { display: inline-block; font-size: 0.9rem; padding: 3px 12px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--ink); }
+  .tag.rent { color: var(--rent); border-color: rgba(102,179,255,0.4); background: rgba(102,179,255,0.08); }
+  .tag.sell { color: var(--sell); border-color: rgba(255,153,153,0.4); background: rgba(255,153,153,0.08); }
+
+  /* Pipeline boxes */
+  .pipeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: stretch; }
+  .stage { padding: 22px; border-radius: 12px; border: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.0)); }
+  .stage h3 { display: flex; align-items: center; gap: 10px; }
+  .stage .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .stage.bronze .dot { background: var(--bronze); }
+  .stage.silver .dot { background: var(--silver); }
+  .stage.gold   .dot { background: var(--gold); }
+  .stage ul { margin-top: 10px; color: var(--ink); font-size: 1.05rem; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Nav */
+  .nav {
+    position: fixed; bottom: 14px; right: 16px; display: flex; gap: 8px; align-items: center;
+    background: rgba(22,26,34,0.85); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 10px; backdrop-filter: blur(6px); z-index: 10;
+  }
+  .nav button { background: transparent; color: var(--ink); border: 0; cursor: pointer;
+    padding: 4px 10px; border-radius: 999px; font-size: 1rem; }
+  .nav button:hover { background: var(--panel-2); }
+  .counter { color: var(--muted); font-size: 0.95rem; min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); width: 0%;
+    transition: width .25s ease; z-index: 11; }
+
+  .footer { position: fixed; bottom: 14px; left: 16px; color: var(--muted); font-size: 0.9rem; z-index: 10; }
+
+  .title-slide { justify-content: center; align-items: center; text-align: center; }
+  .title-slide h1 { font-size: clamp(3rem, 7vw, 5rem); }
+  .title-slide .subtitle { color: var(--muted); font-size: clamp(1.2rem, 2vw, 1.7rem); }
+
+  .callout { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--muted); font-size: 1rem; }
+  .pill { display: inline-block; padding: 3px 12px; border-radius: 999px; background: var(--panel-2);
+    color: var(--ink); font-size: 0.95rem; border: 1px solid var(--border); }
+  .pill.warn { background: rgba(247,209,102,0.10); color: var(--warn); border-color: rgba(247,209,102,0.35); }
+  .pill.good { background: rgba(102,255,219,0.10); color: var(--good); border-color: rgba(102,255,219,0.35); }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  @media print {
+    html, body { height: auto; overflow: visible; background: white; color: black; }
+    .deck { height: auto; overflow: visible; }
+    .nav, .footer, .progress { display: none; }
+    .slide { position: relative; inset: auto; opacity: 1; pointer-events: auto;
+      transform: none; page-break-after: always; min-height: 100vh; }
+    .panel, .stage, pre, code.inline { background: #fafafa; border-color: #ddd; color: #111; }
+    .chart-card img { max-height: none; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+  <!-- 1. Title -->
+  <section class="slide title-slide">
+    <div class="kicker">Data Engineering Training</div>
+    <h1>Brazilian Real Estate Pricing</h1>
+    <div class="subtitle">Rent &amp; Sell &mdash; Properati BR (Data.World), 2013&ndash;2016</div>
+    <div class="row" style="justify-content:center; margin-top:24px">
+      <span class="tag rent">Rent &middot; 97,353 listings</span>
+      <span class="tag sell">Sell &middot; 872,672 listings</span>
+    </div>
+    <p class="muted" style="margin-top:36px">Bronze &rarr; Silver &rarr; Gold pipeline, shared by both datasets</p>
+  </section>
+
+  <!-- 2. Pipeline -->
+  <section class="slide">
+    <div class="kicker">Architecture</div>
+    <h2>Bronze &rarr; Silver &rarr; Gold</h2>
+    <p class="muted">Identical pipeline applied to the Rent and Sell CSVs from Data.World.</p>
+    <div class="pipeline" style="margin-top: 1vh">
+      <div class="stage bronze panel">
+        <h3><span class="dot"></span>Bronze &mdash; Raw</h3>
+        <p class="muted" style="margin-top:6px">Download as-is from Data.World</p>
+        <ul>
+          <li><span class="tag rent">Rent</span> 97,353 rows</li>
+          <li><span class="tag sell">Sell</span> 872,672 rows</li>
+          <li>24 columns each &middot; mixed types, many NaNs</li>
+          <li>Stored to <code class="inline">data/bronze/</code></li>
+        </ul>
+      </div>
+      <div class="stage silver panel">
+        <h3><span class="dot"></span>Silver &mdash; Cleaned</h3>
+        <p class="muted" style="margin-top:6px">Splits, drops, no imputation</p>
+        <ul>
+          <li>Split place into country / region / city</li>
+          <li>Kept only Brazilian listings</li>
+          <li>Dropped 11 unused columns</li>
+          <li>Dropped rows with no price</li>
+          <li>Kept source USD columns as-is</li>
+        </ul>
+      </div>
+      <div class="stage gold panel">
+        <h3><span class="dot"></span>Gold &mdash; Analysis</h3>
+        <p class="muted" style="margin-top:6px">Aggregations &amp; charts</p>
+        <ul>
+          <li>Avg price by region</li>
+          <li>Avg price per m&sup2; by region</li>
+          <li>Type distribution &amp; price</li>
+          <li>90-day rolling trends</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Dataset structure -->
+  <section class="slide">
+    <div class="kicker">Dataset structure</div>
+    <h2>Same schema, different operation &mdash; very different scale</h2>
+    <div class="grid-2">
+      <div class="panel stack">
+        <h3>Source</h3>
+        <p>Properati Brazil snapshot via Data.World, frozen at <strong>2016-11-01</strong>.</p>
+        <ul>
+          <li><code class="inline">properati-BR-2016-11-01-properties-rent</code></li>
+          <li><code class="inline">properati-BR-2016-11-01-properties-sell</code></li>
+        </ul>
+        <h3 style="margin-top:14px">Shape</h3>
+        <table>
+          <thead><tr><th>Dataset</th><th class="num">Rows</th><th class="num">Cols</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag rent">Rent</span></td><td class="num">97,353</td><td class="num">24</td></tr>
+            <tr><td><span class="tag sell">Sell</span></td><td class="num">872,672</td><td class="num">24</td></tr>
+          </tbody>
+        </table>
+        <p class="muted" style="margin-top:8px">Sell is roughly <strong>9&times;</strong> larger than Rent &mdash; same schema, same pipeline.</p>
+      </div>
+      <div class="panel stack">
+        <h3>Columns by category</h3>
+        <table>
+          <tbody>
+            <tr><td class="muted">Identifiers</td><td><code class="inline">operation</code>, <code class="inline">property_type</code>, <code class="inline">created_on</code></td></tr>
+            <tr><td class="muted">Location</td><td><code class="inline">place_name</code>, <code class="inline">place_with_parent_names</code>, <code class="inline">lat</code>, <code class="inline">lon</code>, <code class="inline">lat-lon</code>, <code class="inline">geonames_id</code></td></tr>
+            <tr><td class="muted">Pricing</td><td><code class="inline">price</code>, <code class="inline">currency</code>, <code class="inline">price_aprox_local_currency</code>, <code class="inline">price_aprox_usd</code>, <code class="inline">price_per_m2</code>, <code class="inline">price_usd_per_m2</code></td></tr>
+            <tr><td class="muted">Property</td><td><code class="inline">surface_total_in_m2</code>, <code class="inline">surface_covered_in_m2</code>, <code class="inline">floor</code>, <code class="inline">rooms</code>, <code class="inline">expenses</code></td></tr>
+            <tr><td class="muted">Meta</td><td><code class="inline">properati_url</code>, <code class="inline">description</code>, <code class="inline">title</code>, <code class="inline">image_thumbnail</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Null-density -->
+  <section class="slide">
+    <div class="kicker">Dataset structure</div>
+    <h2>Null density &mdash; both datasets side-by-side</h2>
+    <p class="muted">Percentage of <em>missing</em> values per column.
+      <span class="tag rent">Rent &middot; 97,353 rows</span>
+      <span class="tag sell">Sell &middot; 872,672 rows</span></p>
+    <div class="grid-2">
+      <div class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th class="num">Rent % missing</th>
+              <th class="num">Sell % missing</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code class="inline">geonames_id</code></td><td class="num">~100%</td><td class="num">~100%</td></tr>
+            <tr><td><code class="inline">floor</code></td><td class="num">94.6%</td><td class="num">94.2%</td></tr>
+            <tr><td><code class="inline">surface_total_in_m2</code></td><td class="num">83.7%</td><td class="num">75.1%</td></tr>
+            <tr><td><code class="inline">expenses</code></td><td class="num">67.4%</td><td class="num">73.3%</td></tr>
+            <tr><td><code class="inline">lat</code> / <code class="inline">lon</code></td><td class="num">52.7%</td><td class="num">55.6%</td></tr>
+            <tr><td><code class="inline">rooms</code></td><td class="num">39.6%</td><td class="num">37.9%</td></tr>
+            <tr><td><code class="inline">price_usd_per_m2</code></td><td class="num">27.7%</td><td class="num">32.5%</td></tr>
+            <tr><td><code class="inline">surface_covered_in_m2</code></td><td class="num">22.4%</td><td class="num">27.4%</td></tr>
+            <tr><td><code class="inline">price</code></td><td class="num">5.2%</td><td class="num">6.1%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel stack">
+        <h3>What both datasets agree on</h3>
+        <ul>
+          <li><code class="inline">surface_total_in_m2</code> is unusable in both &mdash; we fall back to <code class="inline">surface_covered_in_m2</code>.</li>
+          <li><code class="inline">floor</code> and <code class="inline">expenses</code> are too sparse for any analysis in either dataset.</li>
+          <li>Roughly <strong>half</strong> of listings have no geocoding in both Rent (~53%) and Sell (~56%).</li>
+          <li>About <strong>5&ndash;6%</strong> of listings have <strong>no price</strong> &rarr; dropped from Silver.</li>
+        </ul>
+        <div class="callout">Sell has slightly more missing data overall, but the <em>pattern</em> is the same &mdash; one cleaning pipeline fits both.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Cleaning - Split place -->
+  <section class="slide">
+    <div class="kicker">Cleaning &middot; Silver &middot; step 1 / 5</div>
+    <h2>Break the location string into country, region, city</h2>
+    <div class="grid-2">
+      <div class="panel stack">
+        <h3>Use case</h3>
+        <p>The raw dataset packs the full location into a single piped string. To compare
+          prices <em>across regions</em> or <em>cities</em>, we need each level of the hierarchy
+          as its own column.</p>
+        <h3 style="margin-top:8px">Before</h3>
+        <p><code class="inline">|Brasil|S&atilde;o Paulo|Barueri|Alphaville|</code></p>
+      </div>
+      <div class="panel stack">
+        <h3>What we did</h3>
+        <p>Split that string by <code class="inline">|</code> into three new columns: <strong>country</strong>, <strong>region</strong>, <strong>city</strong>.</p>
+        <h3 style="margin-top:8px">After</h3>
+        <table>
+          <thead><tr><th>country</th><th>region</th><th>city</th></tr></thead>
+          <tbody>
+            <tr><td>Brasil</td><td>S&atilde;o Paulo</td><td>Barueri</td></tr>
+          </tbody>
+        </table>
+        <p class="muted" style="margin-top:8px">Region becomes the main grouping axis for every chart that follows.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Cleaning - Drop non-Brazil entries -->
+  <section class="slide">
+    <div class="kicker">Cleaning &middot; Silver &middot; step 2 / 5</div>
+    <h2>Drop listings that aren&rsquo;t in Brazil</h2>
+    <div class="grid-2">
+      <div class="panel stack">
+        <h3>Use case</h3>
+        <p>The dataset is advertised as Brazilian, but a handful of US listings sneak in
+          (Miami, mostly &mdash; <code class="inline">country = "Estados Unidos"</code>).
+          Mixing a couple hundred USD-denominated US listings with hundreds of thousands
+          of Brazilian ones distorts every per-region and per-type aggregate.</p>
+      </div>
+      <div class="panel stack">
+        <h3>What we did</h3>
+        <ul>
+          <li>Kept only rows where <code class="inline">country == "Brasil"</code>.</li>
+          <li>Removes the Miami / &ldquo;Estados Unidos&rdquo; entries that otherwise show up as
+            their own &ldquo;region&rdquo; in the Gold charts.</li>
+        </ul>
+        <p class="muted">Tiny in row count, but they were skewing the regional breakdowns disproportionately.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Cleaning - Drop unused -->
+  <section class="slide">
+    <div class="kicker">Cleaning &middot; Silver &middot; step 3 / 5</div>
+    <h2>Keep only the columns we&rsquo;ll actually use</h2>
+    <div class="grid-2">
+      <div class="panel stack">
+        <h3>Use case</h3>
+        <p>The raw dataset has 24 columns, but most of them are either redundant
+          (already represented elsewhere), nearly always empty, or simply not relevant
+          for a pricing analysis. Carrying them around just slows everything down and
+          adds visual noise.</p>
+      </div>
+      <div class="panel stack">
+        <h3>What we dropped &mdash; and why</h3>
+        <ul>
+          <li><strong>Redundant</strong> &mdash; original location strings (already split into country / region / city) and coordinate strings.</li>
+          <li><strong>Too sparse to be useful</strong> &mdash; the geonames identifier and the &ldquo;expenses&rdquo; field, mostly empty.</li>
+          <li><strong>Not analytical</strong> &mdash; listing URLs, free-text descriptions and titles, thumbnail images.</li>
+          <li><strong>Replaced</strong> &mdash; the original local-currency price (we recompute a clean USD price later).</li>
+        </ul>
+        <p class="muted">Net result: <strong>24 columns &rarr; 16</strong>, memory footprint roughly a third lighter.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Cleaning - Drop listings without price -->
+  <section class="slide">
+    <div class="kicker">Cleaning &middot; Silver &middot; step 4 / 5</div>
+    <h2>Drop listings with no price</h2>
+    <div class="grid-2">
+      <div class="panel stack">
+        <h3>Use case</h3>
+        <p>A real-estate pricing analysis can&rsquo;t use a listing whose price is unknown.
+          The rest of the missing values (surface, floor, rooms, geocoding) we leave as <em>NaN</em>
+          &mdash; pandas aggregations skip them automatically, which keeps averages honest.</p>
+      </div>
+      <div class="panel stack">
+        <h3>What we did</h3>
+        <ul>
+          <li><strong>Dropped listings with no price</strong> via <code class="inline">dropna(subset=["price"])</code>.</li>
+          <li><strong>Left every other NaN untouched</strong> &mdash; no zero-imputation, so means like
+            <code class="inline">price_usd_per_m2.mean()</code> aren&rsquo;t biased downward by fake zeros.</li>
+        </ul>
+        <p>
+          <span class="pill">Rent: 97,353 &rarr; 92,332</span>
+          <span class="pill">Sell: 872,672 &rarr; 819,298</span>
+        </p>
+        <p class="muted">About 5&ndash;6% of listings removed in each dataset.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. Cleaning - USD columns come pre-computed -->
+  <section class="slide">
+    <div class="kicker">Cleaning &middot; Silver &middot; step 5 / 5</div>
+    <h2>USD prices come pre-computed &mdash; we just use them</h2>
+    <div class="grid-2">
+      <div class="panel stack">
+        <h3>Use case</h3>
+        <p>The original prices are in Brazilian Reais (BRL). To compare regions, years,
+          and the rent vs sell datasets on the same scale, every chart in the deck
+          works off USD values.</p>
+      </div>
+      <div class="panel stack">
+        <h3>What we did</h3>
+        <ul>
+          <li>Used the source columns <code class="inline">price_aprox_usd</code> and
+            <code class="inline">price_usd_per_m2</code> as-is &mdash; Properati already converted them
+            at the listing's own moment in time.</li>
+          <li><strong>No flat-rate recompute</strong>: BRL/USD swung from ~2 to ~4 across 2013&ndash;2016,
+            so a single hard-coded rate would distort cross-year comparisons.</li>
+          <li>Saved the cleaned table to the Silver layer, ready for Gold analysis.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. Analysis - Avg price per region -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 1 / 8</div>
+    <h2>Average price per region</h2>
+    <p class="muted">Mean listing price (USD) grouped by region &mdash; gives a first sense of where the market is most expensive.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent &middot; monthly USD</span>
+        <img src="data/gold/rent_avg_price_per_region.png" alt="Rent: avg price per region" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell &middot; total USD</span>
+        <img src="data/gold/sell_avg_price_per_region.png" alt="Sell: avg price per region" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. Analysis - Avg price per m2 per region -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 2 / 8</div>
+    <h2>Average price per m&sup2; per region</h2>
+    <p class="muted">Normalises for property size &mdash; lets us compare regions on a fair, per-square-metre basis.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent</span>
+        <img src="data/gold/rent_avg_price_m2_by_region.png" alt="Rent: avg USD per m2 per region" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell</span>
+        <img src="data/gold/sell_avg_price_m2_by_region.png" alt="Sell: avg USD per m2 per region" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. Analysis - Type distribution + price -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 3 / 8</div>
+    <h2>Property type &mdash; distribution &amp; average price</h2>
+    <p class="muted">Pie: share of listings. Bars: average price by type.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent</span>
+        <img src="data/gold/rent_avg_price_by_type.png" alt="Rent: type distribution and avg price by type" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell</span>
+        <img src="data/gold/sell_avg_price_by_type.png" alt="Sell: type distribution and avg price by type" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 13. Analysis - 90-day rolling trends -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 4 / 8</div>
+    <h2>Market price trends &mdash; 90-day rolling window</h2>
+    <p class="muted">Daily averages smoothed over a 90-day window per property type &mdash; cuts through day-to-day noise to reveal the actual trend.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent</span>
+        <img src="data/gold/rent_market_price_trends.png" alt="Rent: market price trends" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell</span>
+        <img src="data/gold/sell_market_price_trends.png" alt="Sell: market price trends" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 14. Analysis - Price distribution boxplot -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 5 / 8</div>
+    <h2>Price distribution per region &mdash; boxplot</h2>
+    <p class="muted">Median, interquartile range, and spread per region &mdash; the bar-chart average hides huge variance. Clipped to the 1st&ndash;99th percentile so the boxes stay readable.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent</span>
+        <img src="data/gold/rent_price_distribution_boxplot.png" alt="Rent: price distribution per region" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell</span>
+        <img src="data/gold/sell_price_distribution_boxplot.png" alt="Sell: price distribution per region" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 15. Analysis - Listing volume vs price -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 6 / 8</div>
+    <h2>Listing volume vs price &mdash; monthly</h2>
+    <p class="muted">Bars: listings created per month (supply). Line: 3-month smoothed average price. Lets us see whether supply pressure precedes price moves.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent</span>
+        <img src="data/gold/rent_volume_vs_price.png" alt="Rent: monthly listing volume vs avg price" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell</span>
+        <img src="data/gold/sell_volume_vs_price.png" alt="Sell: monthly listing volume vs avg price" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 16. Analysis - Seasonality -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 7 / 8</div>
+    <h2>Seasonality &mdash; average price by month-of-year</h2>
+    <p class="muted">Listings grouped by calendar month (1&ndash;12) across all years, broken down by property type. Reveals systematic month-of-year patterns the rolling trend smooths away.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent</span>
+        <img src="data/gold/rent_seasonality.png" alt="Rent: avg price by month-of-year per property type" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell</span>
+        <img src="data/gold/sell_seasonality.png" alt="Sell: avg price by month-of-year per property type" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 17. Analysis - Apartment vs house gap -->
+  <section class="slide">
+    <div class="kicker">Analysis &middot; Gold &middot; 8 / 8</div>
+    <h2>Apartment vs house &mdash; price per m&sup2; gap</h2>
+    <p class="muted">Per region: mean price-per-m&sup2; for apartments minus that of houses. Positive (blue) = apartments more expensive per m&sup2;; negative (pink) = houses more expensive.</p>
+    <div class="grid-2">
+      <div class="chart-card">
+        <span class="tag rent">Rent</span>
+        <img src="data/gold/rent_apartment_vs_house_gap.png" alt="Rent: apartment vs house price per m2 gap by region" />
+      </div>
+      <div class="chart-card">
+        <span class="tag sell">Sell</span>
+        <img src="data/gold/sell_apartment_vs_house_gap.png" alt="Sell: apartment vs house price per m2 gap by region" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 18. Open points -->
+  <section class="slide">
+    <div class="kicker">Open points</div>
+    <h2>What this analysis is <em>not</em> yet</h2>
+    <div class="grid-2">
+      <div class="panel stack">
+        <h3>Data quality</h3>
+        <ul>
+          <li><span class="pill warn">No outlier removal</span> A few extreme listings can dominate regional averages. The boxplot view exposes the spread, but downstream means still include the tails.</li>
+          <li><span class="pill warn">Source FX</span> We rely on Properati's pre-computed <code class="inline">price_aprox_usd</code> &mdash; whatever rate they used per listing, we accept as given.</li>
+          <li><span class="pill warn">Missing geocoding</span> Roughly half the listings have no <code class="inline">lat</code>/<code class="inline">lon</code> &mdash; any future geographic analysis would simply lose them.</li>
+        </ul>
+      </div>
+      <div class="panel stack">
+        <h3>Scope</h3>
+        <ul>
+          <li><span class="pill">Snapshot</span> Dataset frozen at 2016-11-01 &mdash; results are historical, not current market.</li>
+          <li><span class="pill">Surface</span> <code class="inline">surface_total_in_m2</code> (~84% missing) discarded; we only use covered surface.</li>
+          <li><span class="pill">Correlation</span> Rooms vs price scatter was only run for S&atilde;o Paulo / houses, and not exported as a chart &mdash; not generalized to other regions or types.</li>
+          <li><span class="pill">Stats</span> No confidence intervals, no significance tests, no holdout.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 19. Suggested analyses -->
+  <section class="slide">
+    <div class="kicker">Suggested analyses</div>
+    <h2>Useful next analyses to explore</h2>
+    <p class="muted">The current Gold layer covers four solid views. Here are concrete extensions that would unlock new questions, using only the columns we already have.</p>
+    <div class="grid-3" style="margin-top: 1vh">
+      <div class="panel stack">
+        <h3>Rent-yield map</h3>
+        <p>Combine <strong>both datasets</strong>: divide the average <em>annualised</em> rent
+          by the average sell price, per region (and per property type).</p>
+        <p class="muted">Answers: <em>&ldquo;Where does a landlord recover their investment fastest?&rdquo;</em></p>
+      </div>
+      <div class="panel stack">
+        <h3>Price-to-rent ratio</h3>
+        <p>The inverse view: sell price &divide; annual rent, per region. A common
+          over- / under-valuation indicator used in real-estate research.</p>
+        <p class="muted">Answers: <em>&ldquo;Is buying or renting cheaper, region by region?&rdquo;</em></p>
+      </div>
+      <div class="panel stack">
+        <h3>Top-N cities per region</h3>
+        <p>Drill from region down to city: list the 10 most expensive cities inside
+          S&atilde;o Paulo, Rio, Minas Gerais, etc.</p>
+        <p class="muted">Answers: <em>&ldquo;Where exactly is the premium concentrated?&rdquo;</em></p>
+      </div>
+      <div class="panel stack">
+        <h3>Room-count premium</h3>
+        <p>Per region and property type, plot average price by number of rooms
+          (1, 2, 3, 4+). Quantifies the <em>marginal cost of an extra bedroom</em>.</p>
+        <p class="muted">Useful for buyers planning families and for investors.</p>
+      </div>
+      <div class="panel stack">
+        <h3>Geographic heatmap</h3>
+        <p>For listings that have real coordinates, plot a heatmap of price-per-m&sup2;.</p>
+        <p class="muted">Highlights intra-region hotspots that an aggregate hides.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="progress" style="display:none"></div>
+<div class="nav" role="navigation" aria-label="Slide navigation">
+  <button id="prev" aria-label="Previous slide">&larr;</button>
+  <span class="counter" id="counter">1 / 1</span>
+  <button id="next" aria-label="Next slide">&rarr;</button>
+</div>
+<div class="footer">DEU &middot; Real Estate Pricing &middot; use &larr; &rarr; / Space / click</div>
+
+<script>
+(function () {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  let idx = 0;
+
+  function show(i) {
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => s.classList.toggle('active', k === idx));
+    counter.textContent = (idx + 1) + ' / ' + slides.length;
+    if (progress) progress.style.width = ((idx + 1) / slides.length * 100) + '%';
+    try { history.replaceState(null, '', '#' + (idx + 1)); } catch (e) {}
+  }
+  function next() { show(idx + 1); }
+  function prev() { show(idx - 1); }
+
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(slides.length - 1); }
+  });
+
+  // Click anywhere (except buttons / images / links) to advance
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t.closest('button, a, img, code, pre, .nav')) return;
+    next();
+  });
+
+  // Honour hash on load (#3 = slide 3)
+  const hash = parseInt((location.hash || '').replace('#', ''), 10);
+  show(Number.isFinite(hash) && hash > 0 ? hash - 1 : 0);
+})();
+</script>
+</body>
+</html>
